@@ -1,6 +1,7 @@
 package cn.beichenhpy;
 
 import cn.hutool.core.collection.ListUtil;
+import cn.hutool.core.date.StopWatch;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
@@ -20,6 +21,8 @@ public class TaskHandler {
         //分配处理线程池的 max + queue 可以充分利用线程，防止进入拒绝策略
         List<List<String>> taskGroup = ListUtil.split(taskList, threadPoolTaskExecutor.getMaxPoolSize() + threadPoolTaskExecutor.getQueueSize());
         List<CompletableFuture<Void>> futures = new ArrayList<>();
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
         for (List<String> taskMembers : taskGroup) {
             for (String task : taskMembers) {
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
@@ -41,14 +44,24 @@ public class TaskHandler {
             CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0])).join();
             log.debug("每组任务线程执行结束");
         }
-        log.debug("执行结束");
+        stopWatch.stop();
+        log.info("任务执行结束了，花费时间: {}", stopWatch.getTotalTimeSeconds());
         threadPoolTaskExecutor.shutdown();
     }
 
     public static void main(String[] args) {
+        doWork(1);
+        doWork(2);
+        doWork(3);
+        doWork(4);
+        doWork(5);
+        doWork(6);
+    }
+
+    public static void doWork(int batch) {
         List<String> taskList = new ArrayList<>(100);
         for (int i = 0; i < 100; i++) {
-            taskList.add("task" + i);
+            taskList.add(batch + "--task--" + i);
         }
         TaskHandler taskHandler = new TaskHandler();
         ThreadPoolTaskExecutor dispatch = ThreadPoolConfig.dispatchThreadPool;
